@@ -74,7 +74,7 @@ void ht_insert(ht *table, const char* key, const char* value) {
     ht_item *curr_item = table->items[hashed_index];
     size_t att = 1;
     
-    while (curr_item) {
+    while (curr_item && curr_item != &HT_DELETED_ITEM) {
         hashed_index = ht_get_hash(key, table->size, att);
         curr_item = table->items[hashed_index];
         att++;
