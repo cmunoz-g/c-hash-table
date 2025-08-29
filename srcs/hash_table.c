@@ -13,7 +13,7 @@ static ht_item *ht_new_item(const char *k, const char* v) {
     return new_item;
 }
 
-ht *ht_new() {
+ht *ht_new_ht() {
     ht *new_ht = malloc(sizeof(ht));
     if (!new_ht) {
         fprintf(stderr, "Error: malloc");
@@ -31,17 +31,17 @@ ht *ht_new() {
 
 // deleting functions
 
-void delete_ht_item(ht_item *item) {
+void ht_delete_ht_item(ht_item *item) {
     free(item->key);
     free(item->value);
     free(item);
 }
 
-void delete_ht(ht *ht) {
+void ht_delete_ht(ht *ht) {
     for (size_t i = 0; i < ht->size; i++) {
         ht_item *item = ht->items[i];
         if (item)
-            delete_ht_item(item);
+            ht_delete_ht_item(item);
     }
     free(ht->items);
     free(ht);
@@ -49,7 +49,7 @@ void delete_ht(ht *ht) {
 
 // hash function
 
-static size_t hash(const char *s, const size_t a, const size_t num_buckets) {
+static size_t ht_hash(const char *s, const size_t a, const size_t num_buckets) {
     long hash = 0;
     const size_t s_len = strlen(s);
     for (size_t i = 0; i < s_len; i++) {
@@ -60,19 +60,60 @@ static size_t hash(const char *s, const size_t a, const size_t num_buckets) {
 
 // collision handler (open addressing with double hashing)
 
-static size_t get_hash(const char *s, const size_t num_buckets, const size_t attempt) {
-    const size_t first_hash = hash(s, HT_PRIME_1, num_buckets);
-    const size_t second_hash = hash(s, HT_PRIME_2, num_buckets);
+static size_t ht_get_hash(const char *s, const size_t num_buckets, const size_t attempt) {
+    const size_t first_hash = ht_hash(s, HT_PRIME_1, num_buckets);
+    const size_t second_hash = ht_hash(s, HT_PRIME_2, num_buckets);
     return (first_hash + (attempt * (second_hash + 1))) % num_buckets;
 }
 
-// int main() {
-//     ht *ht = ht_new();
-//     ht_item *ht_i = ht_new_item("c", "v"); 
-//     delete_ht(ht);
-//     delete_ht_item(ht_i);
+// api
 
-//     size_t hashed = hash("cat", 163, 53);
-//     printf("%d\n", (int)hashed);
+void ht_insert(ht *table, const char* key, const char* value) {
+    ht_item *new_item = ht_new_item(key, value);
+    size_t hashed_index = ht_get_hash(key, table->size, 0);
+    ht_item *curr_item = table->items[hashed_index];
+    size_t att = 1;
+    
+    while (curr_item) {
+        hashed_index = ht_get_hash(key, table->size, att);
+        curr_item = table->items[hashed_index];
+        att++;
+    }
+        
+    table->items[hashed_index] = new_item; 
+    table->count++;
+}
+
+char *ht_search(ht *table, const char *key) {
+    size_t hashed_index = ht_get_hash(key, table->size, 0);
+    ht_item *curr_item = table->items[hashed_index];
+    size_t att = 1;
+
+    while (curr_item) {
+        if (!strcmp(key, curr_item->key)) return curr_item->value;
+        hashed_index = ht_get_hash(key, table->size, att);
+        curr_item = table->items[hashed_index];
+        att++;
+    }
+
+    return NULL;
+}
+
+static ht_item HT_DELETED_ITEM = {NULL, NULL}; // in order to preserve the collision chain, we cannot remove an item from the table. Instead, it is set to point to a sentinel item
+
+void ht_delete(ht *table, const char *key) {
+    
+}
+
+// int main() {
+//     ht *ht = ht_new_ht();
+    
+//     ht_insert(ht, "arda", "guler");
+//     char* searched = ht_search(ht, "arda");
+
+//     printf("%s\n", searched);
+
+//     ht_delete_ht(ht);
+
 //     return 0;
 // }
