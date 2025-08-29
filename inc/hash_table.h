@@ -10,6 +10,7 @@
 #define HT_PRIME_1 131
 #define HT_PRIME_2 257
 
+
 typedef struct {
     char *key;
     char *value;
@@ -20,5 +21,7 @@ typedef struct {
     size_t size;
     size_t count;
 } ht;
+
+static ht_item HT_DELETED_ITEM = {NULL, NULL}; // in order to preserve the collision chain, we cannot remove an item from the table. Instead, it is set to point to a sentinel item
 
 #endif

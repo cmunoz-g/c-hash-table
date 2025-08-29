@@ -40,7 +40,7 @@ void ht_delete_ht_item(ht_item *item) {
 void ht_delete_ht(ht *ht) {
     for (size_t i = 0; i < ht->size; i++) {
         ht_item *item = ht->items[i];
-        if (item)
+        if (item && item != &HT_DELETED_ITEM)
             ht_delete_ht_item(item);
     }
     free(ht->items);
@@ -90,7 +90,7 @@ char *ht_search(ht *table, const char *key) {
     size_t att = 1;
 
     while (curr_item) {
-        if (!strcmp(key, curr_item->key)) return curr_item->value;
+        if (curr_item != &HT_DELETED_ITEM && strcmp(key, curr_item->key) == 0) return curr_item->value;
         hashed_index = ht_get_hash(key, table->size, att);
         curr_item = table->items[hashed_index];
         att++;
@@ -99,19 +99,36 @@ char *ht_search(ht *table, const char *key) {
     return NULL;
 }
 
-static ht_item HT_DELETED_ITEM = {NULL, NULL}; // in order to preserve the collision chain, we cannot remove an item from the table. Instead, it is set to point to a sentinel item
-
 void ht_delete(ht *table, const char *key) {
-    
+    size_t hashed_index = ht_get_hash(key, table->size, 0);
+    ht_item *curr_item = table->items[hashed_index];
+    size_t att = 1;
+
+    while (curr_item) {
+        if (curr_item != &HT_DELETED_ITEM && strcmp(key, curr_item->key) == 0) {
+            ht_delete_ht_item(curr_item);
+            table->items[hashed_index] = &HT_DELETED_ITEM;
+            table->count--;
+        }
+        hashed_index = ht_get_hash(key, table->size, att);
+        curr_item = table->items[hashed_index];
+        att++;
+    }
 }
 
 // int main() {
 //     ht *ht = ht_new_ht();
     
 //     ht_insert(ht, "arda", "guler");
-//     char* searched = ht_search(ht, "arda");
+//     char *searched = ht_search(ht, "arda");
 
-//     printf("%s\n", searched);
+//     printf("before deleting %s\n", searched);
+
+//     ht_delete(ht, "arda");
+
+//     char *deleted = ht_search(ht, "arda");
+//     if (!deleted) printf("arda was deleted\n");
+//     else printf("something went wrong\n");
 
 //     ht_delete_ht(ht);
 
