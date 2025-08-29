@@ -13,7 +13,7 @@ $(OBJFOLDER)%.o: $(FOLDER)%.c
 	$(CC) $(CFLAGS) -I$(INCLUDE) -c $< -o $@
 
 $(NAME): $(OBJS)
-	$(CC) -o $(NAME) $(OBJS)
+	$(CC) -o $(NAME) $(OBJS) -lm
 
 all: $(NAME)
 

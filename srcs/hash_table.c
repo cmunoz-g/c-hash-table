@@ -46,3 +46,26 @@ void delete_ht(ht *ht) {
     free(ht->items);
     free(ht);
 }
+
+// hash function
+
+static size_t hash(char *s, size_t a, size_t num_buckets) {
+    long hash = 0;
+    const size_t s_len = strlen(s);
+    for (size_t i = 0; i < s_len; i++) {
+        hash += (long)pow(a, s_len - (i+1)) * s[i];
+        hash = hash % num_buckets;
+    }
+    return (size_t)hash;
+}
+
+// int main() {
+//     ht *ht = ht_new();
+//     ht_item *ht_i = ht_new_item("c", "v"); 
+//     delete_ht(ht);
+//     delete_ht_item(ht_i);
+
+//     size_t hashed = hash("cat", 163, 53);
+//     printf("%d\n", (int)hashed);
+//     return 0;
+// }
