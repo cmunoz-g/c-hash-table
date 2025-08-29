@@ -53,8 +53,7 @@ static size_t hash(char *s, size_t a, size_t num_buckets) {
     long hash = 0;
     const size_t s_len = strlen(s);
     for (size_t i = 0; i < s_len; i++) {
-        hash += (long)pow(a, s_len - (i+1)) * s[i];
-        hash = hash % num_buckets;
+        hash = (hash * a + s[i]) % num_buckets;
     }
     return (size_t)hash;
 }
