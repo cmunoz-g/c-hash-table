@@ -49,13 +49,21 @@ void delete_ht(ht *ht) {
 
 // hash function
 
-static size_t hash(char *s, size_t a, size_t num_buckets) {
+static size_t hash(const char *s, const size_t a, const size_t num_buckets) {
     long hash = 0;
     const size_t s_len = strlen(s);
     for (size_t i = 0; i < s_len; i++) {
         hash = (hash * a + s[i]) % num_buckets;
     }
     return (size_t)hash;
+}
+
+// collision handler (open addressing with double hashing)
+
+static size_t get_hash(const char *s, const size_t num_buckets, const size_t attempt) {
+    const size_t first_hash = hash(s, HT_PRIME_1, num_buckets);
+    const size_t second_hash = hash(s, HT_PRIME_2, num_buckets);
+    return (first_hash + (attempt * (second_hash + 1))) % num_buckets;
 }
 
 // int main() {

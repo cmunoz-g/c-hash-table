@@ -7,6 +7,9 @@
 #include <stdio.h>
 #include <math.h>
 
+#define HT_PRIME_1 131
+#define HT_PRIME_2 257
+
 typedef struct {
     char *key;
     char *value;
