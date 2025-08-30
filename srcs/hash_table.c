@@ -24,6 +24,7 @@ struct ht {
     size_t base_size;
     size_t size; // Bucket count
     size_t count; // Live items
+    size_t tombstones; // Tracks deleted items to trigger a rehash
 };
 
 /* Tombstone sentinel. In order to preserve the collision chain, deleted items are set to point to a sentinel item  */ 
@@ -89,6 +90,7 @@ void ht_resize(ht *h, const size_t new_base_size) {
 
     h->base_size = nh->base_size;
     h->count = nh->count;
+    h->tombstones = 0;
 
     const size_t size_tmp = h->size;    h->size = nh->size;     nh->size = size_tmp;
     ht_item **items_tmp = h->items;     h->items = nh->items;   nh->items = items_tmp;
@@ -172,8 +174,13 @@ bool ht_remove(ht *h, const char *key) {
             ht_free_item(cur);
             h->items[idx] = &HT_DELETED_ITEM;
             h->count--;
+            
             const size_t load = h->count * 100 / h->size;
             if (load < HT_MIN_LOAD) ht_resize_down(h); 
+
+            if (h->tombstones > h->size / 5) 
+                ht_resize(h, h->base_size);    
+
             return true;
         }
         idx = ht_gen_hash(key, h->size, att++);
