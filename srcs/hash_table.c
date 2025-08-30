@@ -1,4 +1,5 @@
 #include "hash_table.h"
+static ht_item HT_DELETED_ITEM = {NULL, NULL}; // in order to preserve the collision chain, we cannot remove an item from the table. Instead, it is set to point to a sentinel item
 
 // functions to allocate new hash tables, items & resizing
 
@@ -55,32 +56,34 @@ void ht_resize_ht(ht *h, const size_t new_base_size) {
     h->items = new_ht->items;
     new_ht->items = items_tmp;
 
-    ht_delete_ht(new_ht);
+    ht_free_ht(new_ht);
 }
 
 static void ht_resize_up(ht *h) {
-    const size_t new_size = h->size * 2;
+    const size_t new_size = h->base_size * 2;
     ht_resize_ht(h, new_size);
 }
 
 static void ht_resize_down(ht *h) {
-    const size_t new_size = h->size / 2;
+    const size_t new_size = h->base_size / 2;
     ht_resize_ht(h, new_size);
 }
 
 // deleting functions
 
-void ht_delete_ht_item(ht_item *item) {
-    free(item->key);
-    free(item->value);
-    free(item);
+void ht_free_ht_item(ht_item *item) {
+    if (item) {
+        free(item->key);
+        free(item->value);
+        free(item);
+    }
 }
 
-void ht_delete_ht(ht *h) {
+void ht_free(ht *h) {
     for (size_t i = 0; i < h->size; i++) {
         ht_item *item = h->items[i];
         if (item && item != &HT_DELETED_ITEM)
-            ht_delete_ht_item(item);
+            ht_free_ht_item(item);
     }
     free(h->items);
     free(h);
@@ -92,7 +95,7 @@ static size_t ht_hash(const char *s, const size_t a, const size_t num_buckets) {
     long hash = 0;
     const size_t s_len = strlen(s);
     for (size_t i = 0; i < s_len; i++) {
-        hash = (hash * a + s[i]) % num_buckets;
+        hash = (hash * a + (unsigned char)s[i]) % num_buckets;
     }
     return (size_t)hash;
 }
@@ -109,7 +112,7 @@ static size_t ht_get_hash(const char *s, const size_t num_buckets, const size_t 
 
 void ht_insert(ht *h, const char* key, const char* value) {
     const size_t load = h->count * 100 / h->size;
-    if (load > 70) ht_resize_up(h); // resizing the ht to avoid the chance of collisions
+    if (load > HT_MAX_LOAD) ht_resize_up(h); // resizing the ht to avoid the chance of collisions
 
     ht_item *new_item = ht_new_item(key, value);
     size_t hashed_index = ht_get_hash(key, h->size, 0);
@@ -118,7 +121,7 @@ void ht_insert(ht *h, const char* key, const char* value) {
     
     while (curr_item && curr_item != &HT_DELETED_ITEM) {
         if (strcmp(curr_item->key, key) == 0) {
-            ht_delete_ht_item(curr_item);
+            ht_free_ht_item(curr_item);
             h->items[hashed_index] = new_item;
             return;
         }
@@ -131,7 +134,7 @@ void ht_insert(ht *h, const char* key, const char* value) {
     h->count++;
 }
 
-char *ht_search(ht *h, const char *key) {
+const char *ht_search(const ht *h, const char *key) {
     size_t hashed_index = ht_get_hash(key, h->size, 0);
     ht_item *curr_item = h->items[hashed_index];
     size_t att = 1;
@@ -148,23 +151,24 @@ char *ht_search(ht *h, const char *key) {
 }
 
 void ht_delete(ht *h, const char *key) {
-    const size_t load = h->count * 100 / h->size;
-    if (load < 10) ht_resize_down(h); // resizing the ht to avoid wasting memory
-
     size_t hashed_index = ht_get_hash(key, h->size, 0);
     ht_item *curr_item = h->items[hashed_index];
     size_t att = 1;
 
     while (curr_item) {
         if (curr_item != &HT_DELETED_ITEM && strcmp(key, curr_item->key) == 0) {
-            ht_delete_ht_item(curr_item);
+            ht_free_ht_item(curr_item);
             h->items[hashed_index] = &HT_DELETED_ITEM;
             h->count--;
+            break ;
         }
         hashed_index = ht_get_hash(key, h->size, att);
         curr_item = h->items[hashed_index];
         att++;
     }
+
+    const size_t load = h->count * 100 / h->size;
+    if (load < HT_MIN_LOAD) ht_resize_down(h); // resizing the ht to avoid wasting memory
 }
 
 // int main() {
