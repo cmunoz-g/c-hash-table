@@ -1,6 +1,6 @@
 #include "hash_table.h"
 
-// functions to allocate new hash tables and items
+// functions to allocate new hash tables, items & resizing
 
 static ht_item *ht_new_item(const char *k, const char* v) {
     ht_item *new_item = malloc(sizeof(ht_item));
@@ -13,13 +13,14 @@ static ht_item *ht_new_item(const char *k, const char* v) {
     return new_item;
 }
 
-ht *ht_new_ht() {
+ht *ht_new_sized_ht(const size_t base_size) {
     ht *new_ht = malloc(sizeof(ht));
     if (!new_ht) {
         fprintf(stderr, "Error: malloc");
         exit(EXIT_FAILURE);
     }
-    new_ht->size = 42;
+    new_ht->base_size = base_size;
+    new_ht->size = next_prime(new_ht->base_size);
     new_ht->count = 0;
     new_ht->items = calloc(new_ht->size, sizeof(ht_item*));
     if (!new_ht->items) {
@@ -27,6 +28,44 @@ ht *ht_new_ht() {
         exit(EXIT_FAILURE);
     }
     return new_ht;
+}
+
+ht *ht_new_ht() {
+    return ht_new_sized_ht(HT_DEFAULT_BASE_SIZE);
+}
+
+void ht_resize_ht(ht *h, const size_t new_base_size) {
+    if (new_base_size < HT_DEFAULT_BASE_SIZE) return;
+
+    ht *new_ht = ht_new_sized_ht(new_base_size);
+    for (size_t i = 0; i < h->size; i++) {
+        ht_item *item = h->items[i];
+        if (item && item != &HT_DELETED_ITEM)
+            ht_insert(new_ht, item->key, item->value);
+    }
+
+    h->base_size = new_ht->base_size;
+    h->count = new_ht->count;
+
+    const size_t size_tmp = h->size;
+    h->size = new_ht->size;
+    new_ht->size = size_tmp;
+
+    ht_item **items_tmp = h->items;
+    h->items = new_ht->items;
+    new_ht->items = items_tmp;
+
+    ht_delete_ht(new_ht);
+}
+
+static void ht_resize_up(ht *h) {
+    const size_t new_size = h->size * 2;
+    ht_resize_ht(h, new_size);
+}
+
+static void ht_resize_down(ht *h) {
+    const size_t new_size = h->size / 2;
+    ht_resize_ht(h, new_size);
 }
 
 // deleting functions
@@ -37,14 +76,14 @@ void ht_delete_ht_item(ht_item *item) {
     free(item);
 }
 
-void ht_delete_ht(ht *ht) {
-    for (size_t i = 0; i < ht->size; i++) {
-        ht_item *item = ht->items[i];
+void ht_delete_ht(ht *h) {
+    for (size_t i = 0; i < h->size; i++) {
+        ht_item *item = h->items[i];
         if (item && item != &HT_DELETED_ITEM)
             ht_delete_ht_item(item);
     }
-    free(ht->items);
-    free(ht);
+    free(h->items);
+    free(h);
 }
 
 // hash function
@@ -68,50 +107,62 @@ static size_t ht_get_hash(const char *s, const size_t num_buckets, const size_t 
 
 // api
 
-void ht_insert(ht *table, const char* key, const char* value) {
+void ht_insert(ht *h, const char* key, const char* value) {
+    const size_t load = h->count * 100 / h->size;
+    if (load > 70) ht_resize_up(h); // resizing the ht to avoid the chance of collisions
+
     ht_item *new_item = ht_new_item(key, value);
-    size_t hashed_index = ht_get_hash(key, table->size, 0);
-    ht_item *curr_item = table->items[hashed_index];
+    size_t hashed_index = ht_get_hash(key, h->size, 0);
+    ht_item *curr_item = h->items[hashed_index];
     size_t att = 1;
     
     while (curr_item && curr_item != &HT_DELETED_ITEM) {
-        hashed_index = ht_get_hash(key, table->size, att);
-        curr_item = table->items[hashed_index];
+        if (strcmp(curr_item->key, key) == 0) {
+            ht_delete_ht_item(curr_item);
+            h->items[hashed_index] = new_item;
+            return;
+        }
+        hashed_index = ht_get_hash(key, h->size, att);
+        curr_item = h->items[hashed_index];
         att++;
     }
         
-    table->items[hashed_index] = new_item; 
-    table->count++;
+    h->items[hashed_index] = new_item; 
+    h->count++;
 }
 
-char *ht_search(ht *table, const char *key) {
-    size_t hashed_index = ht_get_hash(key, table->size, 0);
-    ht_item *curr_item = table->items[hashed_index];
+char *ht_search(ht *h, const char *key) {
+    size_t hashed_index = ht_get_hash(key, h->size, 0);
+    ht_item *curr_item = h->items[hashed_index];
     size_t att = 1;
 
     while (curr_item) {
-        if (curr_item != &HT_DELETED_ITEM && strcmp(key, curr_item->key) == 0) return curr_item->value;
-        hashed_index = ht_get_hash(key, table->size, att);
-        curr_item = table->items[hashed_index];
+        if (curr_item != &HT_DELETED_ITEM && strcmp(key, curr_item->key) == 0)
+            return curr_item->value;
+        hashed_index = ht_get_hash(key, h->size, att);
+        curr_item = h->items[hashed_index];
         att++;
     }
 
     return NULL;
 }
 
-void ht_delete(ht *table, const char *key) {
-    size_t hashed_index = ht_get_hash(key, table->size, 0);
-    ht_item *curr_item = table->items[hashed_index];
+void ht_delete(ht *h, const char *key) {
+    const size_t load = h->count * 100 / h->size;
+    if (load < 10) ht_resize_down(h); // resizing the ht to avoid wasting memory
+
+    size_t hashed_index = ht_get_hash(key, h->size, 0);
+    ht_item *curr_item = h->items[hashed_index];
     size_t att = 1;
 
     while (curr_item) {
         if (curr_item != &HT_DELETED_ITEM && strcmp(key, curr_item->key) == 0) {
             ht_delete_ht_item(curr_item);
-            table->items[hashed_index] = &HT_DELETED_ITEM;
-            table->count--;
+            h->items[hashed_index] = &HT_DELETED_ITEM;
+            h->count--;
         }
-        hashed_index = ht_get_hash(key, table->size, att);
-        curr_item = table->items[hashed_index];
+        hashed_index = ht_get_hash(key, h->size, att);
+        curr_item = h->items[hashed_index];
         att++;
     }
 }
@@ -122,13 +173,12 @@ void ht_delete(ht *table, const char *key) {
 //     ht_insert(ht, "arda", "guler");
 //     char *searched = ht_search(ht, "arda");
 
-//     printf("before deleting %s\n", searched);
+//     printf("%s\n", searched);
+    
+//     ht_insert(ht, "arda", "not guler");
+//     searched = ht_search(ht, "arda");
 
-//     ht_delete(ht, "arda");
-
-//     char *deleted = ht_search(ht, "arda");
-//     if (!deleted) printf("arda was deleted\n");
-//     else printf("something went wrong\n");
+//     printf("%s\n", searched);
 
 //     ht_delete_ht(ht);
 
