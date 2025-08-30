@@ -4,7 +4,7 @@ CFLAGS = -Wall -Werror -Wextra
 INCLUDE = inc/
 FOLDER = srcs/
 OBJFOLDER = build/
-SRCS = hash_table.c prime.c
+SRCS = hash_table.c prime.c xmem.c
 
 OBJS = $(SRCS:%.c=$(OBJFOLDER)%.o)
 
