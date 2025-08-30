@@ -188,3 +188,9 @@ bool ht_remove(ht *h, const char *key) {
     }
     return false;    
 }
+
+size_t ht_count(const ht *h) { return h ? h->count : 0; }
+
+size_t ht_size(const ht *h) { return h ? h->size : 0; }
+
+size_t ht_load_factor(const ht *h) { return (h && h->size) ? (double)h->count / (double)h->size : 0.0; }
