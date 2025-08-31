@@ -188,25 +188,26 @@ bool ht_set(ht *h, const char* key, const char* value) {
 }
 
 const char *ht_get(const ht *h, const char *key) {
-    size_t idx = ht_gen_hash(key, h->size, 0);
-    ht_item *cur = h->items[idx];
-    size_t att = 1;
+    const size_t cap = h->size;
+    size_t idx = ht_gen_hash(key, cap, 0);
 
-    while (cur) {
+    for (size_t att = 0; att < cap; att++) {
+        ht_item *cur = h->items[idx];
+        if (!cur) return NULL;
         if (cur != &HT_DELETED_ITEM && strcmp(key, cur->key) == 0)
             return cur->value;
-        idx = ht_gen_hash(key, h->size, att++);
-        cur = h->items[idx];
+        idx = ht_gen_hash(key, h->size, att + 1);
     }
     return NULL;
 }
 
 bool ht_remove(ht *h, const char *key) {
-    size_t idx = ht_gen_hash(key, h->size, 0);
-    ht_item *cur = h->items[idx];
-    size_t att = 1;
+    size_t cap = h->size;
+    size_t idx = ht_gen_hash(key, cap, 0);
 
-    while (cur) {
+    for (size_t att = 0; att < cap; att++) {
+        ht_item *cur = h->items[idx];
+        if (!cur) return false;
         if (cur != &HT_DELETED_ITEM && strcmp(key, cur->key) == 0) {
             ht_free_item(cur);
             h->items[idx] = &HT_DELETED_ITEM;
@@ -221,8 +222,7 @@ bool ht_remove(ht *h, const char *key) {
 
             return true;
         }
-        idx = ht_gen_hash(key, h->size, att++);
-        cur = h->items[idx];
+        idx = ht_gen_hash(key, h->size, att + 1);
     }
     return false;    
 }
