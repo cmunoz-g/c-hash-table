@@ -52,33 +52,33 @@ void test_ht_resize() {
         ASSERT_TRUE("ht_set() inserts all keys", ht_set(h, key, "value") == true);
     }
 
-    // for (size_t i = 0; i < HT_RESIZE_N; i++) {
-    //     snprintf(key, sizeof(key), "k_%zu", i);
-    //     ASSERT_TRUE("ht_get() retrieves all keys", strcmp(ht_get(h, key), "value") == 0);
-    // }
+    for (size_t i = 0; i < HT_RESIZE_N; i++) {
+        snprintf(key, sizeof(key), "k_%zu", i);
+        ASSERT_TRUE("ht_get() retrieves all keys", strcmp(ht_get(h, key), "value") == 0);
+    }
 
-    // for (size_t i = 0; i < HT_RESIZE_N; i++) {
-    //     if (i % 2 == 0) {
-    //         snprintf(key, sizeof(key), "k_%zu", i);
-    //         ASSERT_TRUE("removal of keys", ht_remove(h, key) == true);
-    //     }
-    // }
+    for (size_t i = 0; i < HT_RESIZE_N; i++) {
+        if (i % 2 == 0) {
+            snprintf(key, sizeof(key), "k_%zu", i);
+            ASSERT_TRUE("removal of keys", ht_remove(h, key) == true);
+        }
+    }
 
-    // for (size_t i = 1; i < HT_RESIZE_N; i+=2) {
-    //     snprintf(key, sizeof(key), "k_%zu", i);
-    //     ASSERT_TRUE("ht_get() retrieves survivors after heavy removals", strcmp(ht_get(h, key), "value") == 0);
-    // }
+    for (size_t i = 1; i < HT_RESIZE_N; i+=2) {
+        snprintf(key, sizeof(key), "k_%zu", i);
+        ASSERT_TRUE("ht_get() retrieves survivors after heavy removals", strcmp(ht_get(h, key), "value") == 0);
+    }
 
-    // for (size_t i = 0; i < HT_RESIZE_N; i +=2) {
-    //     snprintf(key, sizeof(key), "k_%zu", i);
-    //     ASSERT_TRUE("deleted items are missing", ht_get(h, key) == NULL);
-    // }
+    for (size_t i = 0; i < HT_RESIZE_N; i +=2) {
+        snprintf(key, sizeof(key), "k_%zu", i);
+        ASSERT_TRUE("deleted items are missing", ht_get(h, key) == NULL);
+    }
 
-    // for (size_t i = 0; i < HT_RESIZE_N; i += 2) {
-    //     snprintf(key, sizeof key, "k_%zu", i);
-    //     ASSERT_TRUE("reinsert items into tombstoned table", ht_set(h, key, "new_value") == true);
-    //     ASSERT_TRUE("value of reinserted items is updated correctly", strcmp(ht_get(h, key), "new_value") == 0);
-    // }
+    for (size_t i = 0; i < HT_RESIZE_N; i += 2) {
+        snprintf(key, sizeof key, "k_%zu", i);
+        ASSERT_TRUE("reinsert items into tombstoned table", ht_set(h, key, "new_value") == true);
+        ASSERT_TRUE("value of reinserted items is updated correctly", strcmp(ht_get(h, key), "new_value") == 0);
+    }
 
     ht_destroy(h);
 }

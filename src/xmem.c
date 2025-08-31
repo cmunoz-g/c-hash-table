@@ -3,7 +3,7 @@
 void *xmalloc(size_t size) {
     void *p = malloc(size);
     if (!p) {
-        fprintf(stderr, "Error: malloc()\n");
+        fprintf(stderr, "malloc: OOM\n");
         exit(EXIT_FAILURE);
     }
     return p;
@@ -12,7 +12,7 @@ void *xmalloc(size_t size) {
 void *xcalloc(size_t nmemb, size_t size) {
     void *p = calloc(nmemb, size);
     if (!p) {
-        fprintf(stderr, "Error: calloc()\n");
+        fprintf(stderr, "calloc: OOM\n");
         exit(EXIT_FAILURE);
     }
     return p;

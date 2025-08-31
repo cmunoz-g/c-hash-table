@@ -46,6 +46,9 @@ $(TESTBIN): $(TESTOBJS) $(OBJFOLDER)/libhashtable.a
 tests: $(TESTBIN)
 	./$(TESTBIN)
 
+run: $(EXE)
+	./$(EXE)
+
 clean:
 	@rm -rf $(OBJFOLDER)
 
@@ -54,4 +57,4 @@ fclean: clean
 
 re: fclean all
 
-.PHONY: all clean fclean re tests
+.PHONY: all clean fclean re tests run

@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
+#include <unistd.h>
 
 /*  Constants   */
 #define HT_PRIME_A 131
@@ -29,6 +30,11 @@ struct ht {
 
 /* Tombstone sentinel. In order to preserve the collision chain, deleted items are set to point to a sentinel item  */ 
 static ht_item HT_DELETED_ITEM = {NULL, NULL};
+
+static ht_result ht_set_ex(ht *h, const char* key, const char* value);
+static bool ht_resize_up(ht *h);
+static bool ht_resize_down(ht *h);
+static bool ht_resize(ht *h, size_t new_base_size); 
 
 /*  -------------------
     Allocators, helpers
@@ -75,18 +81,62 @@ static size_t ht_hash(const char *s, const size_t a, const size_t num_buckets) {
 static size_t ht_gen_hash(const char *s, const size_t num_buckets, const size_t attempt) {
     const size_t hash_a = ht_hash(s, HT_PRIME_A, num_buckets);
     const size_t hash_b = ht_hash(s, HT_PRIME_B, num_buckets);
-    return (hash_a + (attempt * (hash_b + 1))) % num_buckets;
+    size_t step = 1 + (hash_b % (num_buckets - 1));
+    return (hash_a + (attempt * step)) % num_buckets;
 }
 
-void ht_resize(ht *h, const size_t new_base_size) {
-    if (new_base_size < HT_DEFAULT_BASE_SIZE) return;
+static ht_result ht_set_ex(ht *h, const char* key, const char* value) {
+    for (;;) {
+        const size_t projected_load = (h->count + 1) * 100 / h->size;
+        if (projected_load >= HT_MAX_LOAD)  {
+            if (!ht_resize_up(h)) return HT_ERR_CAP;
+        }
 
+        size_t idx = ht_gen_hash(key, h->size, 0);
+        size_t cap = h->size;
+        ssize_t first_tombstone = -1;
+        
+        for (size_t att = 0; att < cap; att++) {
+            ht_item *cur = h->items[idx];
+            
+            if (!cur) {
+                size_t dest = (first_tombstone >= 0) ? (size_t)first_tombstone : idx;
+                h->items[dest] = ht_item_new(key, value);
+                if (first_tombstone >= 0) h->tombstones--;
+                h->count++;
+                return HT_OK_INSERTED;
+            }
     
+            if (cur == &HT_DELETED_ITEM) {
+                if (first_tombstone < 0) first_tombstone = idx;
+            }
+            else if (strcmp(cur->key, key) == 0) {
+                char *new_value = xstrdup(value);
+                free(cur->value);
+                cur->value = new_value;
+                return HT_OK_REPLACED;
+            }
+    
+            idx = ht_gen_hash(key, cap, att + 1);
+        }
+    
+        if (!ht_resize_up(h)) return HT_ERR_CAP;
+    }
+}
+
+static bool ht_resize(ht *h, const size_t new_base_size) {
+    if (new_base_size < HT_DEFAULT_BASE_SIZE) return false;
+
     ht *nh = ht_create_sized(new_base_size);
     for (size_t i = 0; i < h->size; i++) {
         ht_item *item = h->items[i];
-        if (item && item != &HT_DELETED_ITEM)
-        ht_set(nh, item->key, item->value);
+        if (item && item != &HT_DELETED_ITEM) {
+            ht_result r = ht_set_ex(nh, item->key, item->value);
+            if (r == HT_ERR_CAP) {
+                ht_destroy(nh);
+                return false;
+            }
+        }
     }
     
     h->base_size = nh->base_size;
@@ -97,10 +147,11 @@ void ht_resize(ht *h, const size_t new_base_size) {
     ht_item **items_tmp = h->items;     h->items = nh->items;   nh->items = items_tmp;
     
     ht_destroy(nh);
+    return true;
 }
 
-static void ht_resize_up(ht *h) { ht_resize(h, h->base_size * 2); }
-static void ht_resize_down(ht *h) { ht_resize(h, h->base_size / 2); }
+static bool ht_resize_up(ht *h) { return ht_resize(h, h->base_size * 2); }
+static bool ht_resize_down(ht *h) { return ht_resize(h, h->base_size / 2); }
 
 /*  ----------
     Public API
@@ -127,31 +178,12 @@ void ht_destroy(ht *h) {
 }
 
 bool ht_set(ht *h, const char* key, const char* value) {
-    const size_t load = h->count * 100 / h->size;
-    if (load > HT_MAX_LOAD) ht_resize_up(h);
-
-    size_t idx = ht_gen_hash(key, h->size, 0);
-    ht_item *cur = h->items[idx];
-    size_t att = 1;
-    
-    while (cur && cur != &HT_DELETED_ITEM) {
-        if (strcmp(cur->key, key) == 0) {
-            char *new_val = xstrdup(value);
-            free(cur->value);
-            cur->value = new_val;
-            return false;
-        }
-        idx = ht_gen_hash(key, h->size, att++);
-        cur = h->items[idx];
-        if (att >= h->size) {
-            fprintf(stderr, "overflow\n");
-            exit(0);
-        }
+    ht_result r = ht_set_ex(h, key, value);
+    if (r == HT_ERR_CAP) {
+        fprintf(stderr, "ht: set failed\n");
+        exit(EXIT_FAILURE);
     }
-        
-    h->items[idx] = ht_item_new(key, value);
-    h->count++;
-    return true;
+    return r == HT_OK_INSERTED;
 }
 
 const char *ht_get(const ht *h, const char *key) {

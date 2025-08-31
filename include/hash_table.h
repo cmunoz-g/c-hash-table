@@ -10,6 +10,13 @@ extern "C" {
 
 typedef struct ht ht;
 
+typedef enum {
+    HT_OK_INSERTED = 0,
+    HT_OK_REPLACED = 1,
+    HT_ERR_OOM     = -1,
+    HT_ERR_CAP     = -2,  // ht cannot grow any longer
+} ht_result;
+
 /*  ---------------------
     Creation, Destruction
     ---------------------
