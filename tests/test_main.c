@@ -22,6 +22,6 @@ int main() {
         return EXIT_FAILURE;
     }
 
-    printf("All tests passed\n");
+    printf("\x1b[32mAll tests passed\x1b[0m\n");
     return EXIT_SUCCESS;
 }

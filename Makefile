@@ -44,7 +44,7 @@ $(TESTBIN): $(TESTOBJS) $(OBJFOLDER)/libhashtable.a
 	$(CC) $(CFLAGS) $^ -o $@
 
 tests: $(TESTBIN)
-	./$(TESTBIN)
+	valgrind --leak-check=full --error-exitcode=1 ./$(TESTBIN)
 
 run: $(EXE)
 	./$(EXE)
