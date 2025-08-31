@@ -81,20 +81,21 @@ static size_t ht_gen_hash(const char *s, const size_t num_buckets, const size_t 
 void ht_resize(ht *h, const size_t new_base_size) {
     if (new_base_size < HT_DEFAULT_BASE_SIZE) return;
 
+    
     ht *nh = ht_create_sized(new_base_size);
     for (size_t i = 0; i < h->size; i++) {
         ht_item *item = h->items[i];
         if (item && item != &HT_DELETED_ITEM)
-            ht_set(nh, item->key, item->value);
+        ht_set(nh, item->key, item->value);
     }
-
+    
     h->base_size = nh->base_size;
     h->count = nh->count;
     h->tombstones = 0;
-
+    
     const size_t size_tmp = h->size;    h->size = nh->size;     nh->size = size_tmp;
     ht_item **items_tmp = h->items;     h->items = nh->items;   nh->items = items_tmp;
-
+    
     ht_destroy(nh);
 }
 
@@ -140,9 +141,12 @@ bool ht_set(ht *h, const char* key, const char* value) {
             cur->value = new_val;
             return false;
         }
-        idx = ht_gen_hash(key, h->size, att);
+        idx = ht_gen_hash(key, h->size, att++);
         cur = h->items[idx];
-        att++;
+        if (att >= h->size) {
+            fprintf(stderr, "overflow\n");
+            exit(0);
+        }
     }
         
     h->items[idx] = ht_item_new(key, value);
