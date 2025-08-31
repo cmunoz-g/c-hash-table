@@ -63,6 +63,7 @@ static ht *ht_create_sized(size_t base_size) {
     h->base_size = base_size;
     h->size = next_prime(h->base_size);
     h->count = 0;
+    h->tombstones = 0;
 
     h->items = xcalloc(h->size, sizeof(ht_item*));
     return h;
@@ -210,6 +211,7 @@ bool ht_remove(ht *h, const char *key) {
             ht_free_item(cur);
             h->items[idx] = &HT_DELETED_ITEM;
             h->count--;
+            h->tombstones++;
             
             const size_t load = h->count * 100 / h->size;
             if (load < HT_MIN_LOAD) ht_resize_down(h); 
@@ -229,4 +231,4 @@ size_t ht_count(const ht *h) { return h ? h->count : 0; }
 
 size_t ht_size(const ht *h) { return h ? h->size : 0; }
 
-size_t ht_load_factor(const ht *h) { return (h && h->size) ? (double)h->count / (double)h->size : 0.0; }
+double ht_load_factor(const ht *h) { return (h && h->size) ? (double)h->count / (double)h->size : 0.0; }

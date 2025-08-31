@@ -45,7 +45,7 @@ bool ht_remove(ht *table, const char *key);
 /*  Introspection */
 size_t ht_count(const ht *h);
 size_t ht_size(const ht *h);
-size_t ht_load_factor(const ht *h);
+double ht_load_factor(const ht *h);
 
 #ifdef __cplusplus
 }
