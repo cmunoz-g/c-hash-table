@@ -1,4 +1,4 @@
-# c-hash-table
+# #️ c-hash-table
 
 Custom implementation of a hash table in C with open addressing, double hashing, prime-sized buckets, and automatic resizing.
 
