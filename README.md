@@ -1,88 +1,78 @@
 # c-hash-table
 
-> Custom implementation of a hash table data structure in C; features open addressing with double hashing, prime-sized bucket arrays and automatic resizes.
+Custom implementation of a hash table in C with open addressing, double hashing, prime-sized buckets, and automatic resizing.
 
+## Build and run
 
-## Start
-
-### Prerequisites
-
-* A C11-capable compiler (e.g., `gcc` or `clang`).
-* `make`
-* `valgrind` for leak checks in the tests.
-
-### Build & run
-
-The static library and binaries are written to `build/`.
+Requires a C11 compiler (`gcc` or `clang`), `make`, and `valgrind` (for tests).
+All outputs are written to `build/`.
 
 ```bash
 # Clone:
 git clone https://github.com/cmunoz-g/c-hash-table c-hash-table
 cd c-hash-table
 
-# Build:
+# Build library and example:
 make
 
 # Run the example:
 make run
 
-# Run the tests:
+# Run unit tests:
 make tests
 ```
 
 ### Make targets
 
-| Target        | What it does                                                 |
-| ------------- | ------------------------------------------------------------ |
-| `make`        | Builds static lib `build/libhashtable.a` and example binary. |
-| `make run`    | Builds (if needed) and runs `examples/basic.c`.              |
-| `make tests`  | Builds & run the unit tests.                                 |
-| `make fclean` | Removes build artifacts and the binary defined by `NAME`.    |
+| Target        | Description                                                 |
+| ------------- | ----------------------------------------------------------- |
+| `make`        | Builds static lib `build/libhashtable.a` and example binary |
+| `make run`    | Runs `examples/basic.c`                                     |
+| `make tests`  | Builds and runs the unit tests                              |
+| `make fclean` | Removes all build artifacts                                 |
 
+## Library usage
 
-## Using as a Library
-
-1. **Add include path** and **link the static lib**:
+1. **Link the library**:
 
    ```bash
    gcc -std=c11 -Wall -Wextra -Iinclude your_app.c build/libhashtable.a -o your_app
    ```
 
-2. **Include the header** in your source:
+2. **Include the header**:
 
    ```c
    #include "hash_table.h"
    ```
 
-> The library exposes a C API and returns non-owning `const char*` for value queries. Returned strings are owned by the table, so they must not be freed or modified.
+The API returns non-owning `const char *` for lookups.
+These strings are owned by the table and must not be freed or modified.
 
+## API
 
-## API Overview
+| Function                                                      | Purpose                            | Notes                                        |
+| ------------------------------------------------------------- | ---------------------------------- | -------------------------------------------- |
+| `ht *ht_create(void);`                                        | Create default-sized table         | Must free with `ht_destroy`                  |
+| `ht *ht_create_with_size(size_t base_size);`                  | Create with custom base size       | Size rounded up to next prime                |
+| `void ht_destroy(ht *table);`                                 | Free table and contents            |                                              |
+| `bool ht_set(ht *table, const char *key, const char *value);` | Insert or update                   | Returns `true` if new, `false` if overwrite  |
+| `const char *ht_get(const ht *table, const char *key);`       | Lookup                             | Returns owned pointer or `NULL` if not found |
+| `bool ht_remove(ht *table, const char *key);`                 | Remove if present                  | Leaves tombstone, may trigger resize/rehash  |
+| `size_t ht_count(const ht *h);`                               | Live item count                    |                                              |
+| `size_t ht_size(const ht *h);`                                | Current bucket array size          |                                              |
+| `double ht_load_factor(const ht *h);`                         | Current load factor (`count/size`) |                                              |
 
-| Function                                                      | Purpose                                   | Returns / Notes                                 |
-| ------------------------------------------------------------- | ----------------------------------------- | ----------------------------------------------- |
-| `ht *ht_create(void);`                                        | Creates a default-sized table             | Returns heap-allocated table; call `ht_destroy` |
-| `ht* ht_create_with_size(size_t base_size);`                  | Creates with base size (rounded to prime) |                                                 |
-| `void ht_destroy(ht *table);`                                 | Frees table and contents                  |                                                 |
-| `bool ht_set(ht *table, const char *key, const char *value);` | Inserts or overwrites                     | `true` on new insert, `false` on update         |
-| `const char *ht_get(const ht *table, const char *key);`       | Lookup                                    | `NULL` if missing; pointer is non-owning        |
-| `bool ht_remove(ht *table, const char *key);`                 | Deletes if present                        | Tombstones; may trigger resize/rehash           |
-| `size_t ht_count(const ht *h);`                               | Number of live items                      |                                                 |
-| `size_t ht_size(const ht *h);`                                | Bucket array size                         |                                                 |
-| `double ht_load_factor(const ht *h);`                         | `count / size`                            |                                                 |
+## Implementation details
 
----
-
-## Design & Implementation Notes
-
-* **Hashing:** polynomial rolling hash; it double hashes with distinct primes for `hash_a` and `hash_b` to reduce inputs hashing to the same output
-* **Collision handling:** open addressing with step `1 + (hash_b % (buckets - 1))`
-* **Resizing policy:** grows/shrinks around load thresholds (70% for resizing down, 10% for resizing up); capacity is always the next prime ≥ base size
-* **Deletion strategy:** tombstones preserve probe chains; there is a periodic rehash to clean up when they occupy too much space
-* **Memory model:** keys/values are copied with `xstrdup`; OOM is fatal via `xmalloc`/`xcalloc`
+* **Hashing:** polynomial rolling hash with distinct primes for `hash_a` and `hash_b`.
+* **Collisions:** resolved with open addressing, step = `1 + (hash_b % (buckets - 1))`.
+* **Resizing:** expands/shrinks based on load factor thresholds (grow above \~70%, shrink below \~10%). Capacity always set to a prime.
+* **Deletions:** use tombstones to preserve probe chains. Periodic rehash cleans up when tombstones accumulate.
+* **Memory model:** keys and values copied with `xstrdup`. Allocation failures are fatal via `xmalloc`/`xcalloc`.
 
 ## Complexity
 
-* **Average:** O(1) set/get/remove
-* **Worst-case:** O(n)
+* **Average case:** O(1) for set/get/remove
+* **Worst case:** O(n)
 * **Space:** O(n) plus tombstones
+
